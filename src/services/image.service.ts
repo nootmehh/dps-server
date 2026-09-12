@@ -120,3 +120,64 @@ export async function deleteUploadedFile(fileUrlOrName: string): Promise<boolean
     return false;
   }
 }
+
+export interface DiskMediaItem {
+  id: string;
+  url: string;
+  relativeUrl: string;
+  fileName: string;
+  fileSize: string;
+  fileSizeBytes: number;
+  uploadedAt: string;
+  createdAt: string;
+}
+
+/**
+ * List files from uploads directory on VPS disk
+ */
+export async function listDiskFiles(subFolder: string = "media"): Promise<DiskMediaItem[]> {
+  try {
+    const cleanFolder = subFolder.replace(/[^a-zA-Z0-9_-]/g, "") || "media";
+    const targetDir = path.join(config.uploadDir, cleanFolder);
+
+    await fs.mkdir(targetDir, { recursive: true });
+    const dirEntries = await fs.readdir(targetDir, { withFileTypes: true });
+
+    const items: DiskMediaItem[] = [];
+
+    for (const entry of dirEntries) {
+      if (!entry.isFile()) continue;
+      const fileName = entry.name;
+      // Filter image extensions
+      const ext = path.extname(fileName).toLowerCase();
+      if (![".webp", ".png", ".jpg", ".jpeg", ".svg", ".gif"].includes(ext)) continue;
+
+      const filePath = path.join(targetDir, fileName);
+      try {
+        const stats = await fs.stat(filePath);
+        const relativeUrl = `/uploads/${cleanFolder}/${fileName}`;
+        const fullUrl = `${config.baseUrl}${relativeUrl}`;
+
+        items.push({
+          id: fileName,
+          url: fullUrl,
+          relativeUrl,
+          fileName,
+          fileSize: formatBytes(stats.size),
+          fileSizeBytes: stats.size,
+          uploadedAt: stats.mtime.toISOString(),
+          createdAt: stats.birthtime.toISOString(),
+        });
+      } catch {
+        // ignore individual file stat error
+      }
+    }
+
+    // Sort newest first
+    items.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    return items;
+  } catch (err) {
+    console.error("Failed to list files from disk:", err);
+    return [];
+  }
+}

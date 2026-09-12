@@ -1,5 +1,24 @@
 import { Request, Response, NextFunction } from "express";
-import { processAndSaveImage, deleteUploadedFile } from "../services/image.service.js";
+import { processAndSaveImage, deleteUploadedFile, listDiskFiles } from "../services/image.service.js";
+
+/**
+ * Handle list uploaded files
+ * GET /api/upload
+ */
+export async function listFiles(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const folder = (req.query.folder as string) || "media";
+    const data = await listDiskFiles(folder);
+
+    res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * Handle single image upload

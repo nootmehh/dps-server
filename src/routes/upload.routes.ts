@@ -1,8 +1,14 @@
 import { Router } from "express";
 import { uploadMiddleware } from "../middlewares/upload.middleware.js";
-import { uploadSingle, uploadMultiple, deleteFile } from "../controllers/upload.controller.js";
+import { uploadSingle, uploadMultiple, deleteFile, listFiles } from "../controllers/upload.controller.js";
 
 const router = Router();
+
+// List uploaded files from VPS disk
+router.get(
+  "/",
+  listFiles
+);
 
 // Single file upload (accepts field name 'file' or 'image')
 router.post(

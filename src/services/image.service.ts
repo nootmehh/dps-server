@@ -165,11 +165,14 @@ export async function deleteUploadedFile(fileUrlOrName: string): Promise<boolean
   try {
     if (!fileUrlOrName) return false;
 
+    // Strip query parameters and decode URL
+    const cleanUrl = fileUrlOrName.split("?")[0].trim();
+    let relativeSubPath = decodeURIComponent(cleanUrl);
+
     // Extract path starting with /uploads/
-    let relativeSubPath = fileUrlOrName;
-    const uploadsIndex = fileUrlOrName.indexOf("/uploads/");
+    const uploadsIndex = relativeSubPath.indexOf("/uploads/");
     if (uploadsIndex !== -1) {
-      relativeSubPath = fileUrlOrName.substring(uploadsIndex + "/uploads/".length);
+      relativeSubPath = relativeSubPath.substring(uploadsIndex + "/uploads/".length);
     }
 
     // Prevent path traversal

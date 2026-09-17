@@ -1,79 +1,79 @@
-# DPS Server (Dedicated Media Processing & API Server)
+# DPS Server (Dedicated Media Processing and API Server)
 
-Server backend mandiri berbasis **Node.js + Express.js + Sharp** untuk menangani pemrosesan gambar berkecepatan tinggi, konversi otomatis ke **WebP**, kompresi aset visual, penyimpanan berkas lokal VPS, dan penyajian media statis untuk **Dua Putra Srikandi (DPS)**.
+A standalone backend service built with Node.js, Express.js, and Sharp to handle high-performance image processing, automated WebP conversion, visual asset compression, VPS filesystem storage, and static media delivery for Dua Putra Srikandi (DPS).
 
-Server ini dirancang terpisah dari frontend (Netlify Jamstack), sehingga frontend tetap ringan (*serverless*) dan seluruh beban komputasi berat (*Sharp image processing*, filesystem I/O, dsb.) ditangani secara dedicated di VPS.
+This server operates independently from the serverless Jamstack frontend, isolating intensive image processing and disk filesystem operations to a dedicated VPS instance.
 
 ---
 
-## 🏗️ Arsitektur Sistem
+## System Architecture
 
 ```
-[ Frontend (Netlify) ]
+[ Frontend ]
    ├── dps-cms (Admin CMS)
    └── dps-compro (Company Profile)
             │
-            │  1. Data Teks / Entitas (CRUD)
+            │  1. Text Data and Entity CRUD
             ▼
-    [ Supabase Database ]
+    [ Database ]
             ▲
-            │  2. Unggah Media & Ambil URL WebP
+            │  2. Upload Media and Retrieve WebP URLs
             ▼
-[ VPS Server (Ubuntu / Linux) ]
+[ Dedicated VPS Server ]
     └── dps-server (Node.js + Express + Sharp)
          ├── Port: 3000
-         ├── Sharp Image Processor (Auto-convert ke WebP & kompresi)
+         ├── Sharp Image Processor (Auto-conversion to WebP and compression)
          ├── Directory: /home/ideatecore/client/dps/dps-server
-         └── Static Media: http://103.127.135.206:3000/uploads/...
+         └── Static Media Delivery: http://103.127.135.206:3000/uploads/...
 ```
 
 ---
 
-## 🚀 Instalasi & Menjalankan di Lokal
+## Installation and Local Development
 
-1. Masuk ke direktori `dps-server`:
+1. Navigate to the server directory:
    ```bash
    cd dps-server
    ```
 
-2. Pasang dependensi:
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Jalankan mode pengembangan:
+3. Start the development server:
    ```bash
    npm run dev
    ```
-   Server akan aktif di `http://localhost:3000`.
+   The service will listen on `http://localhost:3000`.
 
 ---
 
-## 📦 Panduan Deployment ke VPS (Ubuntu / Linux)
+## VPS Deployment Guide
 
-### 1. Letak Folder di VPS
-Direktori di VPS:
+### 1. Working Directory
+Target deployment path on VPS:
 ```
 /home/ideatecore/client/dps/dps-server
 ```
 
-### 2. Setup Awal di VPS
-Masuk ke VPS via SSH, lalu jalankan:
+### 2. Initialization on VPS
+Connect via SSH and execute:
 ```bash
 cd /home/ideatecore/client/dps/dps-server
 npm install
 npm run build
 ```
 
-### 3. Menjalankan dengan PM2 (Process Manager)
-Pastikan `pm2` sudah terpasang di VPS (`npm install -g pm2`). Jalankan:
+### 3. Process Management via PM2
+Using PM2 for background process persistence:
 ```bash
 pm2 start dist/index.js --name "dps-server"
 pm2 save
 pm2 startup
 ```
 
-Untuk melihat log & status di VPS:
+To view runtime status and logs:
 ```bash
 pm2 status
 pm2 logs dps-server
@@ -81,36 +81,22 @@ pm2 logs dps-server
 
 ---
 
-## ⚙️ Variabel Lingkungan (`.env`)
+## REST API Endpoints
 
-File `.env` di VPS:
-```env
-PORT=3000
-NODE_ENV=production
-BASE_URL=http://103.127.135.206:3000
-UPLOAD_DIR=/home/ideatecore/client/dps/dps-server/uploads
-MAX_FILE_SIZE_MB=25
-ALLOWED_ORIGINS=*
-```
-
----
-
-## 📡 Dokumentasi Endpoint REST API
-
-### 1. Unggah Gambar Tunggal
-- **Endpoint**: `POST /api/upload`
-- **Body (`multipart/form-data`)**:
-  - `file`: Berkas gambar (JPG, PNG, WebP, GIF, dsb.)
-  - `folder` *(opsional)*: Subdirektori penyimpanan (`products`, `articles`, `services`, `media`, `site`). Default: `media`.
-- **Response**:
+### 1. Single Image Upload
+- Endpoint: `POST /api/upload`
+- Body (`multipart/form-data`):
+  - `file`: Image file (JPG, PNG, WebP, GIF, etc.)
+  - `folder` (optional): Storage subfolder (`products`, `articles`, `services`, `media`, `site`). Defaults to `media`.
+- Response:
   ```json
   {
     "success": true,
-    "message": "Berkas berhasil diproses dan diunggah.",
-    "url": "http://103.127.135.206:3000/uploads/products/172589..._cat-marka.webp",
-    "relativeUrl": "/uploads/products/172589..._cat-marka.webp",
-    "fileName": "172589..._cat-marka.webp",
-    "originalName": "cat-marka.png",
+    "message": "File processed and uploaded successfully.",
+    "url": "http://103.127.135.206:3000/uploads/products/172589..._marka.webp",
+    "relativeUrl": "/uploads/products/172589..._marka.webp",
+    "fileName": "172589..._marka.webp",
+    "originalName": "marka.png",
     "fileSize": "142 KB",
     "mimeType": "image/webp",
     "width": 1200,
@@ -118,36 +104,36 @@ ALLOWED_ORIGINS=*
   }
   ```
 
-### 2. Unggah Gambar Banyak (Batch)
-- **Endpoint**: `POST /api/upload/multiple`
-- **Body (`multipart/form-data`)**:
-  - `files`: Koleksi berkas gambar (hingga 25 berkas sekaligus).
-  - `folder` *(opsional)*: Subdirektori tujuan.
-- **Response**:
+### 2. Batch Image Upload
+- Endpoint: `POST /api/upload/multiple`
+- Body (`multipart/form-data`):
+  - `files`: Collection of image files (up to 25 files per batch).
+  - `folder` (optional): Target storage subfolder.
+- Response:
   ```json
   {
     "success": true,
-    "message": "3 berkas berhasil diproses dan diunggah.",
+    "message": "3 files processed and uploaded successfully.",
     "count": 3,
     "data": [ ... ]
   }
   ```
 
-### 3. Hapus Berkas dari Disk Server
-- **Endpoint**: `DELETE /api/upload`
-- **Query Params / JSON Body**:
-  - `url`: URL berkas lengkap atau path relatif (misal: `http://103.127.135.206:3000/uploads/products/file.webp` atau `/uploads/products/file.webp`)
-- **Response**:
+### 3. Remove File from Server Disk
+- Endpoint: `DELETE /api/upload`
+- Query Params or JSON Body:
+  - `url`: Full asset URL or relative path
+- Response:
   ```json
   {
     "success": true,
-    "message": "Berkas berhasil dihapus dari server."
+    "message": "File successfully deleted from server."
   }
   ```
 
 ### 4. Health Check
-- **Endpoint**: `GET /api/health`
-- **Response**:
+- Endpoint: `GET /api/health`
+- Response:
   ```json
   {
     "status": "ok",

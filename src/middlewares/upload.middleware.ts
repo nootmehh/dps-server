@@ -13,6 +13,10 @@ const ALLOWED_MIME_TYPES = [
   "image/svg+xml",
   "image/bmp",
   "image/tiff",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-matroska",
   "application/zip",
   "application/x-zip-compressed",
 ];
@@ -23,10 +27,14 @@ export const uploadMiddleware = multer({
     fileSize: config.maxFileSizeMb * 1024 * 1024,
   },
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIME_TYPES.includes(file.mimetype) || file.mimetype.startsWith("image/")) {
+    if (
+      ALLOWED_MIME_TYPES.includes(file.mimetype) ||
+      file.mimetype.startsWith("image/") ||
+      file.mimetype.startsWith("video/")
+    ) {
       cb(null, true);
     } else {
-      cb(new Error(`Tipe berkas "${file.mimetype}" tidak didukung. Harap unggah gambar (JPG, PNG, WebP, dsb).`));
+      cb(new Error(`Tipe berkas "${file.mimetype}" tidak didukung. Harap unggah gambar atau video.`));
     }
   },
 });

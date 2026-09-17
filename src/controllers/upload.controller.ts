@@ -37,7 +37,11 @@ export async function uploadSingle(req: Request, res: Response, next: NextFuncti
     }
 
     const folder = (req.body.folder as string) || "media";
-    const result = await processAndSaveImage(file.buffer, file.originalname, folder);
+    const noConvert = req.body.noConvert === "true" || req.body.noConvert === true;
+    const result = await processAndSaveImage(file.buffer, file.originalname, folder, {
+      noConvert,
+      mimeType: file.mimetype,
+    });
 
     res.status(200).json({
       success: true,
@@ -66,10 +70,14 @@ export async function uploadMultiple(req: Request, res: Response, next: NextFunc
     }
 
     const folder = (req.body.folder as string) || "media";
+    const noConvert = req.body.noConvert === "true" || req.body.noConvert === true;
     const results = [];
 
     for (const f of files) {
-      const processed = await processAndSaveImage(f.buffer, f.originalname, folder);
+      const processed = await processAndSaveImage(f.buffer, f.originalname, folder, {
+        noConvert,
+        mimeType: f.mimetype,
+      });
       results.push(processed);
     }
 

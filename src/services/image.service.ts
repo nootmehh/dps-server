@@ -35,17 +35,82 @@ export function sanitizeFileName(originalName: string): string {
 }
 
 /**
+ * Save file directly without converting to WebP (for hero image/video, preserving original format and full resolution)
+ */
+export async function saveOriginalFile(
+  buffer: Buffer,
+  originalName: string,
+  subFolder: string = "site",
+  mimeType?: string
+): Promise<ProcessedImageResult> {
+  const cleanFolder = subFolder.replace(/[^a-zA-Z0-9_-]/g, "") || "site";
+  const targetDir = path.join(config.uploadDir, cleanFolder);
+
+  // Ensure target folder exists
+  await fs.mkdir(targetDir, { recursive: true });
+
+  const ext = path.extname(originalName).toLowerCase() || (mimeType?.includes("video") ? ".mp4" : ".png");
+  const baseName = path.basename(originalName, ext);
+  const safeBaseName = sanitizeFileName(baseName);
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const savedFileName = `${timestamp}_${randomSuffix}_${safeBaseName}${ext}`;
+  const destinationPath = path.join(targetDir, savedFileName);
+
+  // Write raw buffer directly to disk
+  await fs.writeFile(destinationPath, buffer);
+
+  const relativeUrl = `/uploads/${cleanFolder}/${savedFileName}`;
+  const fullUrl = `${config.baseUrl}${relativeUrl}`;
+
+  let width: number | undefined;
+  let height: number | undefined;
+
+  // Try extracting dimensions if it's an image without altering the buffer
+  if (!mimeType?.startsWith("video/") && !ext.match(/\.(mp4|webm|mov|avi|mkv)$/i)) {
+    try {
+      const meta = await sharp(buffer).metadata();
+      width = meta.width;
+      height = meta.height;
+    } catch {
+      // ignore
+    }
+  }
+
+  return {
+    url: fullUrl,
+    relativeUrl,
+    fileName: savedFileName,
+    originalName,
+    fileSize: formatBytes(buffer.length),
+    fileSizeBytes: buffer.length,
+    mimeType: mimeType || (ext.match(/\.(mp4|webm|mov)$/i) ? "video/mp4" : "image/jpeg"),
+    width,
+    height,
+  };
+}
+
+/**
  * Process image with Sharp:
- * - Auto-rotate based on EXIF
- * - Resize to max 2560px width/height while maintaining aspect ratio
- * - Convert to WebP format (quality: 85, effort: 4)
+ * - If noConvert or hero/site folder or video: save original without conversion
+ * - Otherwise: auto-rotate, resize to max 2560px, convert to WebP
  * - Save directly to the destination folder on disk
  */
 export async function processAndSaveImage(
   buffer: Buffer,
   originalName: string,
-  subFolder: string = "media"
+  subFolder: string = "media",
+  options?: { noConvert?: boolean; mimeType?: string }
 ): Promise<ProcessedImageResult> {
+  const ext = path.extname(originalName).toLowerCase();
+  const isVideo = options?.mimeType?.startsWith("video/") || !!ext.match(/\.(mp4|webm|mov|avi|mkv)$/i);
+  const isSvg = options?.mimeType === "image/svg+xml" || ext === ".svg";
+  const shouldPreserve = options?.noConvert || subFolder === "site" || subFolder === "hero" || isVideo || isSvg;
+
+  if (shouldPreserve) {
+    return saveOriginalFile(buffer, originalName, subFolder, options?.mimeType);
+  }
+
   const cleanFolder = subFolder.replace(/[^a-zA-Z0-9_-]/g, "") || "media";
   const targetDir = path.join(config.uploadDir, cleanFolder);
 

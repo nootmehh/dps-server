@@ -100,11 +100,52 @@ export async function processAndSaveImage(
   buffer: Buffer,
   originalName: string,
   subFolder: string = "media",
-  options?: { noConvert?: boolean; mimeType?: string }
+  options?: { noConvert?: boolean; mimeType?: string; isFavicon?: boolean }
 ): Promise<ProcessedImageResult> {
   const ext = path.extname(originalName).toLowerCase();
   const isVideo = options?.mimeType?.startsWith("video/") || !!ext.match(/\.(mp4|webm|mov|avi|mkv)$/i);
   const isSvg = options?.mimeType === "image/svg+xml" || ext === ".svg";
+
+  // Auto-resize favicons to 192x192 (multiple of 48: 48x4) with transparent background
+  const isFavicon = options?.isFavicon || subFolder === "favicon" || originalName.toLowerCase().includes("favicon");
+  if (isFavicon && !isVideo && !isSvg) {
+    const cleanFolder = "site";
+    const targetDir = path.join(config.uploadDir, cleanFolder);
+    await fs.mkdir(targetDir, { recursive: true });
+
+    const safeBaseName = sanitizeFileName(originalName);
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const pngFileName = `${timestamp}_${randomSuffix}_${safeBaseName}_192.png`;
+    const destinationPath = path.join(targetDir, pngFileName);
+
+    const { data, info } = await sharp(buffer)
+      .rotate()
+      .resize(192, 192, {
+        fit: "contain",
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png({ compressionLevel: 9 })
+      .toBuffer({ resolveWithObject: true });
+
+    await fs.writeFile(destinationPath, data);
+
+    const relativeUrl = `/uploads/${cleanFolder}/${pngFileName}`;
+    const fullUrl = `${config.baseUrl}${relativeUrl}`;
+
+    return {
+      url: fullUrl,
+      relativeUrl,
+      fileName: pngFileName,
+      originalName,
+      fileSize: formatBytes(info.size),
+      fileSizeBytes: info.size,
+      mimeType: "image/png",
+      width: 192,
+      height: 192,
+    };
+  }
+
   const shouldPreserve = options?.noConvert || subFolder === "site" || subFolder === "hero" || isVideo || isSvg;
 
   if (shouldPreserve) {

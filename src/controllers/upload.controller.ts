@@ -38,9 +38,11 @@ export async function uploadSingle(req: Request, res: Response, next: NextFuncti
 
     const folder = (req.body.folder as string) || "media";
     const noConvert = req.body.noConvert === "true" || req.body.noConvert === true;
+    const isFavicon = req.body.isFavicon === "true" || req.body.isFavicon === true || folder === "favicon";
     const result = await processAndSaveImage(file.buffer, file.originalname, folder, {
       noConvert,
       mimeType: file.mimetype,
+      isFavicon,
     });
 
     res.status(200).json({
